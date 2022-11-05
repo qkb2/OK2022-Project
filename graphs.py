@@ -1,8 +1,30 @@
+import random
+
+
+def generate_random(v: int, e: int, s: str):
+    matrix = [[0 for _ in range(v)] for _ in range(v)]
+    with open(s, 'w') as f1:
+        f1.write(str(v) + '\n')
+        c = 0
+        while c < e:
+            a = random.randint(1, v)
+            b = a
+            while a == b:
+                b = random.randint(1, v)
+            if matrix[a - 1][b - 1] == 1:
+                continue
+            matrix[a - 1][b - 1] = 1
+            matrix[b - 1][a - 1] = 1
+            c += 1
+            f1.write(str(a) + ' ' + str(b) + '\n')
+
+
 class Vertex:
     def __init__(self, name) -> None:
         self.name = name
         self.color = -1
         self.is_visited = 0
+
 
 class Graph:
     def __init__(self) -> None:
@@ -13,12 +35,12 @@ class Graph:
         self.vertices = []
 
     def __repr__(self) -> str:
-        repr = ''
+        s = ''
         for i in range(self.V):
             for j in range(self.V):
-                repr += str(self.matrix[i][j])+' '
-            repr += '\n'
-        return repr
+                s += str(self.matrix[i][j])+' '
+            s += '\n'
+        return s
 
     def create_edge_list_from_file(self, faddr: str = None):
         if faddr is None:
@@ -55,7 +77,7 @@ class Graph:
 
     def greedy_coloring(self) -> None:
         for i in range(self.V):
-            colors = [0 for _ in range(G.V)]
+            colors = [0 for _ in range(self.V)]
             for j in range(self.V):
                 if self.matrix[i][j] == 1:
                     if self.vertices[j].color == -1:
@@ -79,10 +101,12 @@ class Graph:
             s += str(v.name) + ' has color ' + str(v.color) + '\n'
         return s
 
+
 if __name__ == '__main__':
     G = Graph()
-    G.create_graph()
-    print(G)
+    # generate_random(20, 38, "file2.txt")
+    # print(G)
+    # print(G.get_color_str())
+    G.create_graph("dane2.txt")
     G.greedy_coloring()
     print(G.get_greatest_color())
-    print(G.get_color_str())
