@@ -1,22 +1,5 @@
 import random
-from copy import deepcopy
-
-def generate_random(v: int, e: int, s: str):
-    matrix = [[0 for _ in range(v)] for _ in range(v)]
-    with open(s, 'w') as f1:
-        f1.write(str(v) + '\n')
-        c = 0
-        while c < e:
-            a = random.randint(1, v)
-            b = a
-            while a == b:
-                b = random.randint(1, v)
-            if matrix[a - 1][b - 1] == 1:
-                continue
-            matrix[a - 1][b - 1] = 1
-            matrix[b - 1][a - 1] = 1
-            c += 1
-            f1.write(str(a) + ' ' + str(b) + '\n')
+from copy import copy
 
 
 class Vertex:
@@ -30,12 +13,14 @@ class Vertex:
 
 
 class Graph:
-    def __init__(self) -> None:
+    def __init__(self, path: str = None) -> None:
         self.V = 0
         self.E = 0
         self.edge_list = []
         self.matrix = []
         self.vertices = []
+        self.create_edge_list_from_file(path)
+        self.create_matrix_from_edge_list()
 
     def __repr__(self) -> str:
         s = ''
@@ -74,157 +59,118 @@ class Graph:
             self.matrix[el[0] - 1][el[1] - 1] = 1
             self.matrix[el[1] - 1][el[0] - 1] = 1
 
-    def create_graph(self, faddr: str = None) -> None:
-        self.create_edge_list_from_file(faddr)
-        self.create_matrix_from_edge_list()
-
-    def reset_colors(self):
+    def reset_colors(self) -> None:
         for i in self.vertices:
             i.color = -1
 
 
-
 class Individual:
-    def __init__(self, coloring):
-        self.coloring = coloring
-        self.colors = len(set([x for _, x in coloring]))
+    def __init__(self, root, permutation) -> None:
+        self.root = root
+        self.permutation = copy(permutation)
+        self.fitness = 0
 
-    def __repr__(self):
-        # return "(" + str(self.coloring) + ", " + str(self.colors) + ")"
-        return str(self.colors)
+    def __repr__(self) -> str:
+        text = ''
+        text += "\nPermutation: " + str(self.permutation)
+        text += "\nFitness: " + str(self.fitness)
+        return text
 
-    def update_num_of_colors(self):
-        self.colors = len(set([x for _, x in self.coloring]))
-
-
-class Coloring:
-    def __init__(self, path) -> None:
-        self.graph = Graph()
-        self.graph.create_graph(path)
-        self.vertices_num = len(self.graph.vertices)
-
-        self.greedies_on_start = 20
-        self.population_size = 100
-        self.max_number_of_populations = 10
-        self.selection_chance = 0.5
-        self.length_of_individual = self._bits_for_vertex(
-            len(self.graph.vertices))
-        self.crossover_probability = 0.8
-
-        self.mutate_individual_probability = 0.5
-        self.mutate_gene_probability = 0.05
-        self.mutation_attempts = 20
-
-    def greedy_coloring_perm(self, perm: list):
-        self.graph.reset_colors()
+    def get_coloring(self) -> list:
+        self.root.graph.reset_colors()
         coloring = []
-        for i in perm:
-            colors = [0 for _ in range(self.graph.V)]
-            for j in range(self.graph.V):
-                if self.graph.matrix[i][j] == 1:
-                    if self.graph.vertices[j].color == -1:
+        for i in self.permutation:
+            colors = [0 for _ in range(self.root.graph.V)]
+            for j in range(self.root.graph.V):
+                if self.root.graph.matrix[i][j] == 1:
+                    if self.root.graph.vertices[j].color == -1:
                         continue
-                    colors[self.graph.vertices[j].color] = 1
-            for j in range(self.graph.V):
+                    colors[self.root.graph.vertices[j].color] = 1
+            for j in range(self.root.graph.V):
                 if colors[j] == 0:
-                    self.graph.vertices[i].color = j
+                    self.root.graph.vertices[i].color = j
                     coloring.append((i + 1, j + 1))
                     break
         coloring.sort()
-        return Individual(coloring)
 
-    def greedy_coloring(self) -> None:
-        for i in range(self.graph.V):
-            colors = [0 for _ in range(self.graph.V)]
-            for j in range(self.graph.V):
-                if self.graph.matrix[i][j] == 1:
-                    if self.graph.vertices[j].color == -1:
+        c = 0
+        for v in self.root.graph.vertices:
+            if v.color > c:
+                c = v.color
+
+        return coloring
+
+    def get_value(self) -> int:
+        self.root.graph.reset_colors()
+        for i in self.permutation:
+            colors = [0 for _ in range(self.root.graph.V)]
+            for j in range(self.root.graph.V):
+                if self.root.graph.matrix[i][j] == 1:
+                    if self.root.graph.vertices[j].color == -1:
                         continue
-                    colors[self.graph.vertices[j].color] = 1
-            for j in range(self.graph.V):
+                    colors[self.root.graph.vertices[j].color] = 1
+            for j in range(self.root.graph.V):
                 if colors[j] == 0:
-                    self.graph.vertices[i].color = j
+                    self.root.graph.vertices[i].color = j
                     break
 
-    def greedy_get_greatest_color(self) -> int:
         c = 0
-        for v in self.graph.vertices:
+        for v in self.root.graph.vertices:
             if v.color > c:
                 c = v.color
         return c
 
-    def greedy_get_color_str(self) -> str:
-        s = ''
-        for v in self.graph.vertices:
-            s += str(v.name) + ' has color ' + str(v.color) + '\n'
-        return s
+    def set_fitness_from_greedy(self) -> None:
+        self.fitness = self.get_value()
 
-    def genetic_coloring(self) -> None:
-        population = self.first_pop()
-        print(f'startowa populacja\t{population}')
-        # solutions = [(self.best_in_pop(population))]
-        print(f'Najlepszy w populacji\t {self.best_in_pop(population)}\t{self.best_in_pop(population).coloring}\n\n')
-        for i in range(self.max_number_of_populations):
+    def set_fitness_from_parents(self, parent1, parent2) -> None:
+        self.fitness = (parent1.fitness + parent2.fitness) / 2
+
+
+class Coloring:
+    def __init__(self, path: str) -> None:
+        self.graph = Graph(path)
+        self.population_size = 200
+        self.genetic_iterations = 20
+        self.fitness_check_iteration = 4
+        self.selection_multiplier = 1
+
+    def colorize(self) -> None:
+        population = self.initialize_population()
+        best_individuals_list = []
+
+        for i in range(self.genetic_iterations):
+            print(f"Iteration {i + 1}...")
+            if i % self.fitness_check_iteration == 0 or i == self.genetic_iterations - 1:
+                for individual in population:
+                    individual.set_fitness_from_greedy()
+                best_individuals_list.append(self.best_in_population(population))
+
             population = self.selection(population)
-            print(f'Po selekcji\t\t{population}')
-            population = self._crossover(population)
-            print(f'Po wymieszaniu\t{population}')
-            population = self._mutation(population)
-            print(f'Po mutacji\t\t{population}')
-            # print(all([self.is_valid(x.coloring) for x in population]))
-            # print(self.best_in_pop(population).coloring)
-            print(f"Najlepszy w populacji: {self.best_in_pop(population)}\t{self.best_in_pop(population).coloring}")
-            print('\n')
+            population = self.crossover(population)
+            population = self.mutation(population)
 
+        self.show_solution(best_individuals_list)
 
-
-    def first_pop(self):
-        pop = []
-        perm_of_colors = list(range(0, self.vertices_num))
-        for i in range(self.greedies_on_start):
+    def initialize_population(self) -> list:
+        population = []
+        perm_of_colors = list(range(0, self.graph.V))
+        for _ in range(self.population_size):
             random.shuffle(perm_of_colors)
-            pop.append(self.greedy_coloring_perm(perm_of_colors))
-
-        while len(pop) < self.population_size:
-            colors = [i for i in range(self.vertices_num)]
-            coloring = []
-            for i in range(self.vertices_num):
-                vertex = i + 1
-                chosen_color = random.choice(colors)
-                coloring.append((vertex, chosen_color))
-            if self.is_valid(coloring):
-                # individual = self._encode(coloring)
-                # pop.append(individual)
-                pop.append(Individual(coloring))
-        return pop
-
-    def is_valid(self, coloring):
-        e = self.graph.edge_list
-        c = coloring
-        return all(self.color(w1, c) != self.color(w2, c) for w1, w2 in e)
+            population.append(Individual(self, perm_of_colors))
+        return population
 
     @staticmethod
-    def color(vertex, coloring):
-        """Returns color in coloring palette given vertex number."""
-        for v, c in coloring:
-            if v == vertex:
-                return c
+    def best_in_population(population: list) -> Individual:
+        return min(population, key=lambda x: x.fitness)
 
-    def best_in_pop(self, pop):
-        best_individual = pop[0]
-
-        for individual in pop:
-            if individual.colors < best_individual.colors:
-                best_individual = individual
-        return best_individual
-
-    def selection(self, population):
+    def selection(self, population: list) -> list:
         after_selection = []
         for i in range((self.population_size // 2)):
             multiplier_for_better = random.randint(1, 10)
-            multiplier_for_worse = random.randint(1, int((1 + self.selection_chance) * 10))
-            ind1 = population[i].colors
-            ind2 = population[i + self.population_size // 2].colors
+            multiplier_for_worse = random.randint(1, int((1 + self.selection_multiplier) * 10))
+            ind1 = population[i].fitness
+            ind2 = population[i + self.population_size // 2].fitness
             if ind1 > ind2:
                 ind1 *= multiplier_for_worse
                 ind2 *= multiplier_for_better
@@ -239,113 +185,76 @@ class Coloring:
 
         return after_selection
 
-    def _encode(self, coloring, individual_len=None):
-        """Encode the vertices into one long binary sequence. The vertex
-        number 1 is most righte number 2 second from right etc.
-        """
-        if individual_len is None:
-            individual_len = self.length_of_individual
-
-        individual = 0
-        for w, k in coloring:
-            individual |= k << (w * individual_len)
-        return individual
-
-    def _decode(self, individual, individual_len=None, num_of_vertices=None):
-        """Reverse function to _encode. We first create mask to extract
-        chosen color and then bitshift right to obtain an actual number.
-        """
-        if individual_len is None:
-            individual_len = self.length_of_individual
-        if num_of_vertices is None:
-            num_of_vertices = self.vertices_num
-
-        coloring = []
-        mask = 0
-        for i in range(individual_len):
-            mask |= 1 << i
-
-        for i in range(num_of_vertices):
-            vertex = i + 1
-            current_mask = mask << (vertex * individual_len)
-            color = (individual & current_mask) >> (vertex * individual_len)
-            coloring.append((vertex, color))
-
-        return coloring
-
-    def _bits_for_vertex(self, v):
-        """Calculates number of bits necessary for decoding every vertex's
-        color.
-        """
-        i = 1
-        while 2 ** i <= v:
-            i += 1
-        return i
-
-    def _crossover(self, population):
-        pairs = []
+    def crossover(self, population: list) -> list:
         for i in range(self.population_size // 2):
-            individual1 = random.choice(population)
-            individual2 = random.choice(population)
-            pairs.append((individual1, individual2))
+            population.append(self.crossover_pair(random.choice(population[:self.population_size // 2]),
+                                                  random.choice(population[:self.population_size // 2])))
 
-        after_crossover = []
-        for c1, c2 in pairs:
-            after_crossover.extend(self._crossover_individuales(c1, c2))
-        return after_crossover
+        return population
 
-    def _crossover_individuales(self, c1, c2):
-        """Perform crossover with fixed probability. Then randomly choose
-        point where two individuals will crossover.
-        """
-        c1 = self._encode(c1.coloring)
-        c2 = self._encode(c2.coloring)
+    def crossover_pair(self, individual1: Individual, individual2: Individual) -> Individual:
+        new_permutation = []
+        crossover_point = random.randint(1, self.graph.V - 1)
+        write_access = [x for x in range(self.graph.V)]
 
-        if random.uniform(0.0, 1.0) < self.crossover_probability:
-            crossover_point = random.randint(0, self.length_of_individual)
-            mask = 0
+        if random.randint(0, 1):    # Adjusting to left  (Individual 1)
+            for i in individual1.permutation[:crossover_point]:
+                write_access[i] = -1
+            for i in individual2.permutation[crossover_point:]:
+                if write_access[i] != -1:
+                    new_permutation.append(i)
+                    write_access[i] = -1
+                else:
+                    new_permutation.append(-1)
+            write_access = [i for i in write_access if i != -1]
+            random.shuffle(write_access)
+
+            iterator = 0
+            for i in range(self.graph.V - crossover_point):
+                if new_permutation[i] == -1:
+                    new_permutation[i] = write_access[iterator]
+                    iterator += 1
+            new_permutation = individual1.permutation[:crossover_point] + new_permutation
+
+        else:                       # Adjusting to right (Individual 2)
+            for i in individual2.permutation[crossover_point:]:
+                write_access[i] = -1
+            for i in individual1.permutation[:crossover_point]:
+                if write_access[i] != -1:
+                    new_permutation.append(i)
+                    write_access[i] = -1
+                else:
+                    new_permutation.append(-1)
+            write_access = [i for i in write_access if i != -1]
+            random.shuffle(write_access)
+            iterator = 0
+
             for i in range(crossover_point):
-                mask |= 1 << i
-            new_c1 = (c1 & mask) | (c2 & ~mask)
-            new_c2 = (c1 & ~mask) | (c2 & mask)
-            return Individual(self._decode(new_c1)), Individual(self._decode(new_c2))
-        else:
-            return Individual(self._decode(c1)), Individual(self._decode(c2))
+                if new_permutation[i] == -1:
+                    new_permutation[i] = write_access[iterator]
+                    iterator += 1
+            new_permutation = new_permutation + individual2.permutation[crossover_point:]
 
-    def _mutation(self, population):
-        after_mutation = []
-        for individual in population:
-            if random.uniform(0.0, 1.0) < self.mutate_individual_probability:
-                after_mutation.append(self._mutate_individual(individual))
-                # print(f"po mutacji w _mutation {after_mutation[-1]}")
-            else:
-                after_mutation.append(individual)
-        return after_mutation
+        new_individual = Individual(self, new_permutation)
+        new_individual.set_fitness_from_parents(individual1, individual2)
+        return new_individual
 
-    def _mutate_individual(self, individual):
-        for _ in range(self.mutation_attempts):
-            new_individual = self._change_color(deepcopy(individual))
-            if self.is_valid(new_individual.coloring):
-                # print(f"Nowy w mutate individual {new_individual}")
-                new_individual.update_num_of_colors()
-                # print(f"Dodaje do rozw {self.is_valid(new_individual.coloring)}")
-                return new_individual
-        return individual
+    def mutation(self, population: list) -> list:
+        for i in population[:self.population_size // 2]:
+            while random.randint(0, 1):
+                gene1 = random.randint(0, self.graph.V - 1)
+                gene2 = random.randint(0, self.graph.V - 1)
+                i.permutation[gene1], i.permutation[gene2] = i.permutation[gene2], i.permutation[gene1]
+        return population
 
-    def _change_color(self, individual):
-        for vert in range(self.vertices_num):
-            if random.uniform(0.0, 1.0) < self.mutate_gene_probability:
-                # print("Muruje koloj")
-                individual.coloring[vert] = (vert + 1, random.randint(1, self.vertices_num))
-
-        return individual
+    def show_solution(self, best_individuals_list: list) -> None:
+        best_individual = self.best_in_population(best_individuals_list)
+        print(f'\n***** Best Solution *****\n'
+              f'Colors: {best_individual.fitness + 1}\n'
+              f'Permutation: {best_individual.permutation}\n'
+              f'Coloring: {best_individual.get_coloring()}\n')
 
 
 if __name__ == '__main__':
-    Colors = Coloring("dane.txt")
-    # Colors.greedy_coloring()
-    # print(Colors.graph.vertices)
-    Colors.genetic_coloring()
-    # print(Colors.greedy_get_greatest_color())
-
-# ([(1, 29), (2, 9), (3, 1), (4, 15), (5, 11), (6, 2), (7, 23), (8, 17), (9, 4), (10, 20), (11, 18), (12, 20), (13, 18), (14, 14), (15, 6), (16, 13), (17, 6), (18, 7), (19, 31), (20, 11), (21, 26), (22, 13), (23, 16), (24, 26), (25, 4), (26, 26), (27, 26), (28, 13), (29, 20), (30, 27), (31, 7), (32, 17), (33, 16)], 19)
+    problem = Coloring("gc500.txt")
+    problem.colorize()
