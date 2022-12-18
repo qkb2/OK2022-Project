@@ -7,6 +7,7 @@ class Vertex:
         self.name = name
         self.color = -1
         self.is_visited = 0
+        self.saturation = 0
 
     def __repr__(self) -> str:
         return str(self.color)
@@ -58,11 +59,17 @@ class Graph:
         for el in self.edge_list:
             self.matrix[el[0] - 1][el[1] - 1] = 1
             self.matrix[el[1] - 1][el[0] - 1] = 1
+            self.vertices[el[0] - 1].saturation += 1
+            self.vertices[el[1] - 1].saturation += 1
 
     def reset_colors(self) -> None:
         for i in self.vertices:
             i.color = -1
 
+    def get_desatur_ordering(self) -> None:
+        ordering = sorted(self.vertices, key=lambda x: x.saturation, reverse=True)
+        perm = [v.name-1 for v in ordering]
+        return perm
 
 class Individual:
     def __init__(self, root, permutation) -> None:
@@ -153,9 +160,11 @@ class Coloring:
         self.show_solution(best_individuals_list)
 
     def initialize_population(self) -> list:
-        population = []
+        desatur_perm = self.graph.get_desatur_ordering()
+        # print(desatur_perm)
+        population = [Individual(self, desatur_perm)]
         perm_of_colors = list(range(0, self.graph.V))
-        for _ in range(self.population_size):
+        for _ in range(self.population_size-1):
             random.shuffle(perm_of_colors)
             population.append(Individual(self, perm_of_colors))
         return population
