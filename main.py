@@ -1,4 +1,5 @@
 import random
+from time import perf_counter
 from copy import copy
 
 
@@ -144,8 +145,10 @@ class Coloring:
         self.fitness_check_iteration = 4
         self.selection_multiplier = 1
         self.dsatur_size = 10
+        self.perf_time = 0
 
     def colorize(self) -> None:
+        time_start = perf_counter()
         population = self.initialize_population()
         best_individuals_list = []
 
@@ -160,6 +163,8 @@ class Coloring:
             population = self.crossover(population)
             population = self.mutation(population)
 
+        time_stop = perf_counter()
+        self.perf_time = time_stop - time_start
         self.show_solution(best_individuals_list)
 
     def initialize_population(self) -> list:
@@ -261,12 +266,14 @@ class Coloring:
 
     def show_solution(self, best_individuals_list: list) -> None:
         best_individual = self.best_in_population(best_individuals_list)
-        print(f'\n***** Best Solution: {best_individual.fitness + 1} colors *****\n')
+        print(
+            f'\n***** Best Solution: {best_individual.fitness + 1} colors in {self.perf_time}s *****\n')
         with open('coloring_log.txt', 'a') as f:
             f.write(f'***** Best Solution for {self.graph.path}*****\n'
               f'Colors: {best_individual.fitness + 1}\n'
+              f'Time: {self.perf_time}\n'
               f'Permutation: {best_individual.permutation}\n'
-              f'Coloring: {best_individual.get_coloring()}\n')
+              f'Coloring: {best_individual.get_coloring()}\n\n')
 
 
 if __name__ == '__main__':
