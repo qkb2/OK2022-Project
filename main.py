@@ -265,5 +265,5 @@ class Coloring:
 
 
 if __name__ == '__main__':
-    problem = Coloring("gc500.txt")
+    problem = Coloring("graph_examples/gc500.txt")
     problem.colorize()
