@@ -20,6 +20,7 @@ class Graph:
         self.edge_list = []
         self.matrix = []
         self.vertices = []
+        self.path = path
         self.create_edge_list_from_file(path)
         self.create_matrix_from_edge_list()
 
@@ -31,12 +32,13 @@ class Graph:
             s += '\n'
         return s
 
-    def create_edge_list_from_file(self, faddr: str = None):
-        if faddr is None:
-            faddr = input('Input the file address: ')
+    def create_edge_list_from_file(self, path: str = None):
+        if path is None:
+            path = input('Input the file address: ')
 
+        self.path = path
         self.edge_list = []
-        with open(faddr, 'r') as fread:
+        with open(path, 'r') as fread:
             x = fread.readline()
             self.V = int(x)
 
@@ -66,7 +68,7 @@ class Graph:
         for i in self.vertices:
             i.color = -1
 
-    def get_desatur_ordering(self) -> None:
+    def get_dsatur_ordering(self) -> None:
         ordering = sorted(self.vertices, key=lambda x: x.saturation, reverse=True)
         perm = [v.name-1 for v in ordering]
         return perm
@@ -137,10 +139,11 @@ class Individual:
 class Coloring:
     def __init__(self, path: str) -> None:
         self.graph = Graph(path)
-        self.population_size = 200
+        self.population_size = 220
         self.genetic_iterations = 20
         self.fitness_check_iteration = 4
         self.selection_multiplier = 1
+        self.dsatur_size = 10
 
     def colorize(self) -> None:
         population = self.initialize_population()
@@ -160,11 +163,11 @@ class Coloring:
         self.show_solution(best_individuals_list)
 
     def initialize_population(self) -> list:
-        desatur_perm = self.graph.get_desatur_ordering()
-        # print(desatur_perm)
-        population = [Individual(self, desatur_perm)]
+        dsatur_perm = self.graph.get_dsatur_ordering()
+        # print(dsatur_perm)
+        population = [Individual(self, dsatur_perm) for _ in range(self.dsatur_size)]
         perm_of_colors = list(range(0, self.graph.V))
-        for _ in range(self.population_size-1):
+        for _ in range(self.population_size-self.dsatur_size):
             random.shuffle(perm_of_colors)
             population.append(Individual(self, perm_of_colors))
         return population
@@ -258,12 +261,14 @@ class Coloring:
 
     def show_solution(self, best_individuals_list: list) -> None:
         best_individual = self.best_in_population(best_individuals_list)
-        print(f'\n***** Best Solution *****\n'
+        print(f'\n***** Best Solution: {best_individual.fitness + 1} colors *****\n')
+        with open('coloring_log.txt', 'a') as f:
+            f.write(f'***** Best Solution for {self.graph.path}*****\n'
               f'Colors: {best_individual.fitness + 1}\n'
               f'Permutation: {best_individual.permutation}\n'
               f'Coloring: {best_individual.get_coloring()}\n')
 
 
 if __name__ == '__main__':
-    problem = Coloring("graph_examples/gc500.txt")
+    problem = Coloring("graph_examples/myciel4.txt")
     problem.colorize()
