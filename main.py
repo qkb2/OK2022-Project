@@ -146,6 +146,9 @@ class Coloring:
         self.selection_multiplier = 1
         self.dsatur_size = 10
         self.perf_time = 0
+        self.max_time_minutes = 5
+        self.safe_time = 20
+        self.max_time = 60*self.max_time_minutes-self.safe_time
 
     def colorize(self) -> None:
         time_start = perf_counter()
@@ -154,6 +157,9 @@ class Coloring:
 
         for i in range(self.genetic_iterations):
             print(f"Iteration {i + 1}...")
+            if self.max_time > perf_counter():
+                print("Timeout")
+                break
             if i % self.fitness_check_iteration == 0 or i == self.genetic_iterations - 1:
                 for individual in population:
                     individual.set_fitness_from_greedy()
