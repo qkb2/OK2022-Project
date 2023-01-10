@@ -74,6 +74,28 @@ class Graph:
         perm = [v.name-1 for v in ordering]
         return perm
 
+    def generate_random_graph(self, v: int, chromatic: float, safety_limit: int=100):
+        self.V = v
+        for v in range(self.V):
+            self.vertices.append(Vertex(v + 1))
+        self.matrix = [[0 for _ in range(v)] for _ in range(v)]
+        c = 0
+        safety_c = 0
+        stop = int(chromatic*v)
+        while c < stop and safety_c < safety_limit:
+            a = random.randint(1, v)
+            b = a
+            while a == b:
+                b = random.randint(1, v)
+            if self.matrix[a - 1][b - 1] == 1:
+                safety_c += 1
+                continue
+            self.matrix[a - 1][b - 1] = 1
+            self.matrix[b - 1][a - 1] = 1
+            self.vertices[a - 1].saturation += 1
+            self.vertices[b - 1].saturation += 1
+            c += 1
+
 class Individual:
     def __init__(self, root, permutation) -> None:
         self.root = root
@@ -156,18 +178,21 @@ class Coloring:
         best_individuals_list = []
 
         for i in range(self.genetic_iterations):
+            is_timeout = False
             print(f"Iteration {i + 1}...")
             if self.max_time > perf_counter():
                 print("Timeout")
+                is_timeout = True
                 break
-            if i % self.fitness_check_iteration == 0 or i == self.genetic_iterations - 1:
+            if i % self.fitness_check_iteration == 0 or i == self.genetic_iterations - 1 or is_timeout:
                 for individual in population:
                     individual.set_fitness_from_greedy()
                 best_individuals_list.append(self.best_in_population(population))
 
-            population = self.selection(population)
-            population = self.crossover(population)
-            population = self.mutation(population)
+            if not is_timeout:
+                population = self.selection(population)
+                population = self.crossover(population)
+                population = self.mutation(population)
 
         time_stop = perf_counter()
         self.perf_time = time_stop - time_start
