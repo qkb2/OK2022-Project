@@ -2,6 +2,8 @@ import random
 from time import perf_counter
 from copy import copy
 
+import graph_visualization
+
 
 class Vertex:
     def __init__(self, name) -> None:
@@ -69,7 +71,7 @@ class Graph:
         for i in self.vertices:
             i.color = -1
 
-    def get_dsatur_ordering(self) -> None:
+    def get_dsatur_ordering(self) -> list:
         ordering = sorted(self.vertices, key=lambda x: x.saturation, reverse=True)
         perm = [v.name-1 for v in ordering]
         return perm
@@ -161,6 +163,7 @@ class Individual:
 
 class Coloring:
     def __init__(self, path: str) -> None:
+        self.best_individuals_list = []
         self.graph = Graph(path)
         self.population_size = 220
         self.genetic_iterations = 20
@@ -175,7 +178,6 @@ class Coloring:
     def colorize(self) -> None:
         time_start = perf_counter()
         population = self.initialize_population()
-        best_individuals_list = []
 
         for i in range(self.genetic_iterations):
             is_timeout = False
@@ -187,7 +189,7 @@ class Coloring:
             if i % self.fitness_check_iteration == 0 or i == self.genetic_iterations - 1 or is_timeout:
                 for individual in population:
                     individual.set_fitness_from_greedy()
-                best_individuals_list.append(self.best_in_population(population))
+                self.best_individuals_list.append(self.best_in_population(population))
 
             if not is_timeout:
                 population = self.selection(population)
@@ -196,7 +198,7 @@ class Coloring:
 
         time_stop = perf_counter()
         self.perf_time = time_stop - time_start
-        self.show_solution(best_individuals_list)
+        self.show_solution(self.best_individuals_list)
 
     def initialize_population(self) -> list:
         dsatur_perm = self.graph.get_dsatur_ordering()
@@ -308,5 +310,7 @@ class Coloring:
 
 
 if __name__ == '__main__':
-    problem = Coloring("graph_examples/myciel4.txt")
+    problem = Coloring("graph_examples/baby_myciel.txt")
     problem.colorize()
+    graph_visualization.visualize_graph(
+        problem.best_in_population(problem.best_individuals_list).get_coloring(), problem.graph)
