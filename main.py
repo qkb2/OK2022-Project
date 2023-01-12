@@ -2,7 +2,8 @@ import random
 from time import perf_counter
 from copy import copy
 
-import graph_visualization
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 class Vertex:
@@ -77,6 +78,7 @@ class Graph:
         return perm
 
     def generate_random_graph(self, v: int, chromatic: float, safety_limit: int=100):
+        # do not use
         self.V = v
         for v in range(self.V):
             self.vertices.append(Vertex(v + 1))
@@ -106,8 +108,8 @@ class Individual:
 
     def __repr__(self) -> str:
         text = ''
-        text += "\nPermutation: " + str(self.permutation)
-        text += "\nFitness: " + str(self.fitness)
+        # text += "\nPermutation: " + str(self.permutation)
+        text += "Fitness: " + str(self.fitness)
         return text
 
     def get_coloring(self) -> list:
@@ -152,13 +154,44 @@ class Individual:
         for v in self.root.graph.vertices:
             if v.color > c:
                 c = v.color
-        return c
+        return c+1
 
     def set_fitness_from_greedy(self) -> None:
         self.fitness = self.get_value()
 
     def set_fitness_from_parents(self, parent1, parent2) -> None:
         self.fitness = (parent1.fitness + parent2.fitness) / 2
+
+    def visualize_graph(self) -> None:
+        colors = [ "lightcoral", "gray", "lightgray", "firebrick", "red", "chocolate", "darkorange", "moccasin",
+        "gold", "yellow", "darkolivegreen", "chartreuse", "forestgreen", "lime", "mediumaquamarine", "turquoise",
+        "teal", "cadetblue", "dogerblue", "blue", "slateblue", "blueviolet", "magenta", "lightsteelblue"]
+
+        # colors = ['blue', 'yellow', 'green', 'gray', 'red']
+        real_coloring = []
+
+        coloring = self.get_coloring()
+
+        for el in coloring:
+            real_coloring.append(colors[el[1] - 1])
+
+        # print(real_coloring)
+        # remember use only after using the Coloring init
+        network = nx.Graph()
+        for i in range(1, self.root.graph.V + 1):
+            network.add_node(i)
+
+        for el in self.root.graph.edge_list:
+            network.add_edge(el[0], el[1])
+
+        # print(network)
+        pos = nx.circular_layout(network)
+
+        nx.draw_networkx(network, pos=pos, node_color=real_coloring)
+        plt.show(block=False)
+        plt.savefig("visualizations/graph{}.png".format(self.root.visualizations))
+        self.root.visualizations += 1
+        plt.close()
 
 
 class Coloring:
@@ -174,8 +207,13 @@ class Coloring:
         self.max_time_minutes = 5
         self.safe_time = 20
         self.max_time = 60*self.max_time_minutes-self.safe_time
+        self.visualize = False
+        self.visualization_max = 2
+        self.visualizations = 0
+        self.best_color = 0
 
-    def colorize(self) -> None:
+    def colorize(self, visualize=False) -> None:
+        self.visualize = visualize
         time_start = perf_counter()
         population = self.initialize_population()
 
@@ -190,6 +228,13 @@ class Coloring:
                 for individual in population:
                     individual.set_fitness_from_greedy()
                 self.best_individuals_list.append(self.best_in_population(population))
+                print(self.best_individuals_list)
+
+                # for visualization
+                if self.visualization_max > 0 and self.visualize:
+                    self.best_individuals_list[-1].visualize_graph()
+                    print(self.best_individuals_list[-1].fitness)
+                    self.visualization_max -= 1
 
             if not is_timeout:
                 population = self.selection(population)
@@ -243,6 +288,14 @@ class Coloring:
         return population
 
     def crossover_pair(self, individual1: Individual, individual2: Individual) -> Individual:
+        # counter visualizes the pair
+        local_visualizer = False
+        if self.visualization_max > 0 and self.visualize:
+            local_visualizer = True
+            individual1.visualize_graph()
+            individual2.visualize_graph()
+            self.visualization_max -= 1
+
         new_permutation = []
         crossover_point = random.randint(1, self.graph.V - 1)
         write_access = [x for x in range(self.graph.V)]
@@ -287,6 +340,10 @@ class Coloring:
 
         new_individual = Individual(self, new_permutation)
         new_individual.set_fitness_from_parents(individual1, individual2)
+
+        if local_visualizer:
+            new_individual.visualize_graph()
+
         return new_individual
 
     def mutation(self, population: list) -> list:
@@ -299,18 +356,21 @@ class Coloring:
 
     def show_solution(self, best_individuals_list: list) -> None:
         best_individual = self.best_in_population(best_individuals_list)
+        self.best_color = best_individual.fitness
+        if self.visualize:
+            best_individual.visualize_graph()
         print(
-            f'\n***** Best Solution: {best_individual.fitness + 1} colors in {self.perf_time}s *****\n')
+            f'\n***** Best Solution: {best_individual.fitness} colors in {self.perf_time}s *****\n')
         with open('coloring_log.txt', 'a') as f:
             f.write(f'***** Best Solution for {self.graph.path}*****\n'
-              f'Colors: {best_individual.fitness + 1}\n'
+              f'Colors: {best_individual.fitness}\n'
               f'Time: {self.perf_time}\n'
               f'Permutation: {best_individual.permutation}\n'
               f'Coloring: {best_individual.get_coloring()}\n\n')
 
 
 if __name__ == '__main__':
-    problem = Coloring("graph_examples/baby_myciel.txt")
-    problem.colorize()
-    graph_visualization.visualize_graph(
-        problem.best_in_population(problem.best_individuals_list).get_coloring(), problem.graph)
+    problem = Coloring("graph_examples/queen6.txt")
+    problem.colorize(True)
+    # graph_visualization.visualize_graph(
+    #     problem.best_in_population(problem.best_individuals_list).get_coloring(), problem.graph)

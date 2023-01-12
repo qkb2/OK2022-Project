@@ -128,5 +128,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# intellij idea
+# Intellij Idea
 .idea
+
+# VS Code
+.vscode
+
+# log files
+coloring_log.txt
