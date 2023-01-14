@@ -370,7 +370,7 @@ class Coloring:
 
 
 if __name__ == '__main__':
-    problem = Coloring("graph_examples/queen6.txt")
-    problem.colorize(True)
+    problem = Coloring("graph_examples/le450_5a.txt")
+    problem.colorize()
     # graph_visualization.visualize_graph(
     #     problem.best_in_population(problem.best_individuals_list).get_coloring(), problem.graph)
